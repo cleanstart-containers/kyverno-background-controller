@@ -1,0 +1,187 @@
+# {"id":"00001","variant":"standard","title":"Kyverno Background Controller deployment.yaml"}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kyverno
+  labels:
+    app: kyverno-background-controller
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kyverno-background-controller
+  namespace: kyverno
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kyverno-background-controller
+rules:
+  # Core and common resources the controller typically needs
+  - apiGroups: [""]
+    resources:
+      - pods
+      - services
+      - endpoints
+      - configmaps
+      - events
+      - namespaces
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "daemonsets", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch"]
+  # Kyverno & policy groups (cover legacy + split CRDs)
+  - apiGroups: ["kyverno.io", "wgpolicyk8s.io", "policies.kyverno.io", "policy.kyverno.io", "policies.policies.kyverno.io"]
+    resources:
+      - policies
+      - clusterpolicies
+      - validatingpolicies
+      - mutatingpolicies
+      - generatingpolicies
+      - deletingpolicies
+      - imagevalidatingpolicies
+      - policyexceptions
+      - updaterequests
+      - policyreports
+      - clusterpolicyreports
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  # Allow reading secrets if needed for certs (tighten if not needed)
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kyverno-background-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kyverno-background-controller
+subjects:
+  - kind: ServiceAccount
+    name: kyverno-background-controller
+    namespace: kyverno
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kyverno-background-controller-config
+  namespace: kyverno
+data:
+  INIT_CONFIG: |-
+    {"config":{}}
+  METRICS_CONFIG: |-
+    {"enabled":true}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kyverno-background-controller
+  namespace: kyverno
+  labels:
+    app: kyverno-background-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kyverno-background-controller
+  template:
+    metadata:
+      labels:
+        app: kyverno-background-controller
+    spec:
+      serviceAccountName: kyverno-background-controller
+      # tolerations/nodeSelector can be added as required
+      containers:
+        - name: kyverno-background-controller
+          image: cleanstart/kyverno-background-controller:latest-dev
+          imagePullPolicy: IfNotPresent
+          args: []
+          env:
+            - name: KYVERNO_NAMESPACE
+              value: "kyverno"
+            - name: KYVERNO_SERVICEACCOUNT_NAME
+              value: "kyverno-background-controller"
+            - name: KYVERNO_DEPLOYMENT
+              value: "kyverno-background-controller"
+            - name: KYVERNO_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: INIT_CONFIG
+              valueFrom:
+                configMapKeyRef:
+                  name: kyverno-background-controller-config
+                  key: INIT_CONFIG
+            - name: METRICS_CONFIG
+              valueFrom:
+                configMapKeyRef:
+                  name: kyverno-background-controller-config
+                  key: METRICS_CONFIG
+            - name: SSL_CERT_FILE
+              value: /etc/ssl/certs/ca-certificates.crt
+            - name: PATH
+              value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
+            - containerPort: 9443
+              name: https
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      # fallback: if container requires FS group, adjust accordingly
+      securityContext:
+        fsGroup: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kyverno-background-controller
+  namespace: kyverno
+  labels:
+    app: kyverno-background-controller
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: metrics
+    - port: 9443
+      targetPort: 9443
+      protocol: TCP
+      name: https
+  selector:
+    app: kyverno-background-controller

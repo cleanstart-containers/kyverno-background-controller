@@ -1,6 +1,6 @@
 # Kyverno Background Controller Container
 
-This container package ships the custom `cleanstart/kyverno-background-controller:latest-dev` image
+This container package ships the custom `ghcr.io/cleanstart-containers/kyverno-background-controller:latest-dev` image
 and a ready-to-run Kubernetes sample that demonstrates how to run Kyverno’s Background Controller
 with correct CRDs, RBAC, health probes, and metrics.
 
@@ -28,7 +28,7 @@ The `kubernetes/README.md` file documents the exact commands and expected output
 
 ## Project Highlights
 
-- **Purpose-built image** – ships `cleanstart/kyverno-background-controller:latest-dev` with the controller binary.
+- **Purpose-built image** – ships `ghcr.io/cleanstart-containers/kyverno-background-controller:latest-dev` with the controller binary.
 - **Ready-to-run sample** – one manifest sets up namespace, RBAC, Service, Deployment, and probes aligned to 8080.
 +- **CRD compatibility** – instructions pin to Kyverno v1.13 CRDs and use server-side apply to avoid size limits.
 - **Operator-friendly** – includes verification steps, metrics access, and focused troubleshooting.

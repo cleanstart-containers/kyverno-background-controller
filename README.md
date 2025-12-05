@@ -16,6 +16,41 @@ with correct CRDs, RBAC, health probes, and metrics.
 - `kubectl` configured for the target cluster
 - Network access to the cluster
 
+## Pull Latest Image
+
+Download the container image from the registry:
+
+```bash
+docker pull ghcr.io/cleanstart-containers/kyverno-background-controller:latest-dev
+```
+
+```bash
+docker pull ghcr.io/cleanstart-containers/kyverno-background-controller:latest-dev
+```
+
+## Basic Run
+
+Run the container with basic configuration:
+
+```bash
+docker run -it --name kyverno \
+  -e KYVERNO_NAMESPACE=kyverno \
+  ghcr.io/cleanstart-containers/kyverno-background-controller:latest
+```
+
+## Production Deployment
+
+Deploy with production security settings:
+
+```bash
+docker run -d --name kyverno-background-controller-prod \
+  --read-only \
+  --security-opt=no-new-privileges \
+  --user 1000:1000 \
+  -e KYVERNO_NAMESPACE=kyverno \
+  ghcr.io/cleanstart-containers/kyverno-background-controller:latest
+```
+
 ## Quick Start
 
 1. Install Kyverno CRDs (v1.13, server-side apply) – ensures legacy CRDs exist and bypasses annotation size limits.

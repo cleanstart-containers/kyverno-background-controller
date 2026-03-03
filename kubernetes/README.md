@@ -78,12 +78,25 @@ kubectl get pods -n kyverno -l app=kyverno-background-controller
 kubectl logs -n kyverno -l app=kyverno-background-controller --tail=100
 ```
 
+```bash
+# Dry run globalcontextentries if not installed the required version
+kubectl apply -f https://github.com/kyverno/kyverno/releases/download/v1.13.0/install.yaml --dry-run=client | grep globalcontextentries
+
+# Pod should become 1/1 Running
+kubectl get pods -n kyverno -l app=kyverno-background-controller
+```
+
 Expected output (example):
 ```
 NAME                                        READY   STATUS    RESTARTS   AGE
 kyverno-background-controller-xxxxx         1/1     Running   0          30s
 ```
 
+If pod fails due to selector mismatch, please delete kyverno-background-controller and apply again
+```
+kubectl delete deployment kyverno-background-controller -n kyverno
+kubectl apply -f deployment.yaml
+```
 ---
 
 ### Step 5: Verify Service and Access Metrics (HTTP on 8080)
@@ -92,10 +105,10 @@ Expose the metrics endpoint locally via port-forward and confirm it responds.
 ```bash
 kubectl get svc -n kyverno kyverno-background-controller
 kubectl get endpoints -n kyverno kyverno-background-controller
-kubectl port-forward -n kyverno svc/kyverno-background-controller 8080:8080
+kubectl port-forward -n kyverno svc/kyverno-background-controller 8000:8000
 
 # New terminal:
-curl http://localhost:8080/metrics
+curl http://localhost:8000/metrics
 ```
 Run this command in another terminal window to see metrics
 
